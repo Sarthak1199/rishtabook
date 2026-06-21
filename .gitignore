@@ -31,6 +31,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# uploaded files — contain personal bio-data, exclude from repo
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# claude session data
+.claude/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
