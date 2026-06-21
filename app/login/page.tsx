@@ -20,7 +20,8 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       })
       if (res.ok) {
-        sessionStorage.setItem('slh_auth', 'true')
+        const expires = Date.now() + 72 * 60 * 60 * 1000
+        localStorage.setItem('slh_auth', JSON.stringify({ expires }))
         router.replace('/dashboard')
       } else {
         toast.error('Invalid email or password')

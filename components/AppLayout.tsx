@@ -21,11 +21,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
-    const auth = sessionStorage.getItem('slh_auth')
-    if (!auth) {
-      router.replace('/login')
-    } else {
+    try {
+      const raw = localStorage.getItem('slh_auth')
+      if (!raw) { router.replace('/login'); return }
+      const { expires } = JSON.parse(raw)
+      if (!expires || Date.now() > expires) {
+        localStorage.removeItem('slh_auth')
+        router.replace('/login')
+        return
+      }
       setChecked(true)
+    } catch {
+      router.replace('/login')
     }
   }, [router])
 
@@ -38,7 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const handleLogout = () => {
-    sessionStorage.removeItem('slh_auth')
+    localStorage.removeItem('slh_auth')
     router.replace('/login')
   }
 

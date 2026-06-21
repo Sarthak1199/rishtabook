@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { ChevronRight, MapPin, GraduationCap, IndianRupee, Loader2, Briefcase, Trash2 } from 'lucide-react'
+import { ChevronRight, MapPin, GraduationCap, IndianRupee, Loader2, Briefcase } from 'lucide-react'
 import clsx from 'clsx'
 
 interface Groom {
@@ -23,7 +23,13 @@ interface Groom {
   timestamp: string
 }
 
-const STATUS_FILTERS = ['All', 'Shortlisted', 'Important', 'Rejected', 'Pending']
+const STATUS_FILTERS = [
+  { value: 'All', label: 'All Statuses' },
+  { value: 'Shortlisted', label: 'Shortlisted' },
+  { value: 'Important', label: 'Girl Approved' },
+  { value: 'Rejected', label: 'Rejected' },
+  { value: 'Pending', label: 'Pending' },
+]
 
 const STATUS_COLORS: Record<string, string> = {
   Shortlisted: 'text-[#2E7D32] bg-green-50',
@@ -139,12 +145,12 @@ export default function DashboardPage() {
 
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold text-[#1C1C1E]">Groom Profiles</h1>
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            className="flex items-center gap-1.5 text-sm text-[#C62828] border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+          <Link
+            href="/add-groom"
+            className="flex items-center gap-1.5 text-sm bg-[#C2185B] text-white px-4 py-2 rounded-xl font-semibold hover:bg-[#AD1457] transition-colors shadow-sm"
           >
-            <Trash2 size={14} /> Clear All
-          </button>
+            + Add Groom
+          </Link>
         </div>
 
         {/* Filters */}
@@ -155,7 +161,7 @@ export default function DashboardPage() {
               onChange={e => setStatusFilter(e.target.value)}
               className="px-3 py-2 text-sm border border-[#E8E8E4] rounded-lg bg-white text-[#1C1C1E] focus:outline-none focus:ring-2 focus:ring-[#C2185B] font-medium"
             >
-              {STATUS_FILTERS.map(s => <option key={s} value={s}>{s === 'All' ? 'All Statuses' : s}</option>)}
+              {STATUS_FILTERS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
             <select
               value={agentFilter}
