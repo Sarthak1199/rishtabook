@@ -33,8 +33,10 @@ export async function POST(req: NextRequest) {
 
     const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID
 
+    const isVercel = !!process.env.VERCEL
+
     if (!folderId) {
-      // Drive not configured — fall back to local storage
+      if (isVercel) return NextResponse.json({ error: 'GOOGLE_DRIVE_FOLDER_ID not set in Vercel environment variables.' }, { status: 500 })
       const localPath = await saveLocally(file)
       return NextResponse.json({ path: localPath, source: 'local' })
     }
@@ -65,6 +67,7 @@ export async function POST(req: NextRequest) {
     } catch (driveError) {
       const errMsg = driveError instanceof Error ? driveError.message : String(driveError)
       console.error('Drive upload failed:', errMsg)
+      if (isVercel) return NextResponse.json({ error: `Drive upload failed: ${errMsg}` }, { status: 500 })
       const localPath = await saveLocally(file)
       return NextResponse.json({ path: localPath, source: 'local', driveError: errMsg })
     }
