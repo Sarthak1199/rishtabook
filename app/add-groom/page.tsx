@@ -82,7 +82,7 @@ export default function AddGroomPage() {
     try {
       // Upload and extract in parallel
       const [uploadRes, extractRes] = await Promise.all([
-        fetch('/api/upload', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('file', file); return fd })() }),
+        fetch('/api/upload', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('file', file); fd.append('label', 'biodata'); fd.append('groomName', form.name || 'Unknown'); return fd })() }),
         fetch('/api/extract-pdf', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('pdf', file); return fd })() }),
       ])
       const uploadData = await uploadRes.json()
@@ -120,6 +120,8 @@ export default function AddGroomPage() {
       for (const file of files) {
         const fd = new FormData()
         fd.append('file', file)
+        fd.append('label', 'photo')
+        fd.append('groomName', form.name || 'Unknown')
         const res = await fetch('/api/upload', { method: 'POST', body: fd })
         const data = await res.json()
         if (data.path) uploadedPaths.push(data.path)

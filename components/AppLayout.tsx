@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, User, UserPlus, Heart, Menu, X, LogOut } from 'lucide-react'
+import { LayoutDashboard, User, UserPlus, Heart, Images, Menu, X, LogOut } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { href: '/my-profile', label: 'My Profile', icon: User },
   { href: '/add-groom', label: 'Add Groom', icon: UserPlus },
   { href: '/match', label: 'Match Analysis', icon: Heart },
+  { href: '/media', label: 'Media Library', icon: Images },
 ]
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
