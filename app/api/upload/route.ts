@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash } from 'crypto'
 import { appendRow } from '@/lib/sheets'
-
-function cloudinarySign(params: Record<string, string>, secret: string): string {
-  const str = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&')
-  return createHash('sha1').update(str + secret).digest('hex')
-}
 
 async function saveLocally(file: File): Promise<string> {
   const { writeFile, mkdir } = await import('fs/promises')
@@ -20,14 +14,7 @@ async function saveLocally(file: File): Promise<string> {
 
 async function logToMediaSheet(url: string, fileType: string, groomId: string, groomName: string, label: string) {
   try {
-    await appendRow('Media', [
-      new Date().toISOString(),
-      url,
-      fileType,
-      groomId,
-      groomName,
-      label,
-    ])
+    await appendRow('Media', [new Date().toISOString(), url, fileType, groomId, groomName, label])
   } catch { /* non-fatal */ }
 }
 
@@ -37,31 +24,23 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File
     if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
 
-    // Optional metadata for the media library
     const groomId = (formData.get('groomId') as string) || ''
     const groomName = (formData.get('groomName') as string) || ''
     const label = (formData.get('label') as string) || (file.type.startsWith('image/') ? 'photo' : 'pdf')
 
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim()
-    const apiKey = process.env.CLOUDINARY_API_KEY?.trim()
-    const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim()
+    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET?.trim()
     const isVercel = !!process.env.VERCEL
 
-    if (cloudName && apiKey && apiSecret) {
-      const timestamp = String(Math.floor(Date.now() / 1000))
-      const folder = 'rishtabook'
-      const signature = cloudinarySign({ folder, timestamp }, apiSecret)
-
+    if (cloudName && uploadPreset) {
       const bytes = await file.arrayBuffer()
       const base64 = Buffer.from(bytes).toString('base64')
       const dataUri = `data:${file.type || 'application/octet-stream'};base64,${base64}`
 
       const body = new FormData()
       body.append('file', dataUri)
-      body.append('api_key', apiKey)
-      body.append('timestamp', timestamp)
-      body.append('folder', folder)
-      body.append('signature', signature)
+      body.append('upload_preset', uploadPreset)
+      body.append('folder', 'rishtabook')
 
       const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
         method: 'POST',
@@ -71,13 +50,13 @@ export async function POST(req: NextRequest) {
       if (!res.ok) throw new Error(data.error?.message || 'Cloudinary upload failed')
 
       const url: string = data.secure_url
-      const fileType = file.type.startsWith('image/') ? 'image' : 'pdf'
-      await logToMediaSheet(url, fileType, groomId, groomName, label)
-
+      await logToMediaSheet(url, file.type.startsWith('image/') ? 'image' : 'pdf', groomId, groomName, label)
       return NextResponse.json({ path: url, source: 'cloudinary' })
     }
 
-    if (isVercel) return NextResponse.json({ error: 'File storage not configured. Add CLOUDINARY credentials to Vercel environment variables.' }, { status: 500 })
+    if (isVercel) return NextResponse.json({
+      error: 'File storage not configured. Add CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET to Vercel environment variables.'
+    }, { status: 500 })
 
     const localPath = await saveLocally(file)
     await logToMediaSheet(localPath, file.type.startsWith('image/') ? 'image' : 'pdf', groomId, groomName, label)

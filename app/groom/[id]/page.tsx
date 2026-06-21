@@ -222,23 +222,74 @@ export default function GroomDetailPage() {
   const formattedDate = groom.timestamp ? new Date(groom.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
   const age = groom.age || calcAge(groom.dob)
 
-  const shareOnWhatsApp = () => {
+  const NAKSHATRA_GANA: Record<string, string> = {
+    Ashwini: 'Deva', Bharani: 'Manava', Krittika: 'Rakshasa', Rohini: 'Manava',
+    Mrigashira: 'Deva', Ardra: 'Manava', Punarvasu: 'Deva', Pushya: 'Deva',
+    Ashlesha: 'Rakshasa', Magha: 'Rakshasa', 'Purva Phalguni': 'Manava',
+    'Uttara Phalguni': 'Manava', Hasta: 'Deva', Chitra: 'Rakshasa', Swati: 'Deva',
+    Vishakha: 'Rakshasa', Anuradha: 'Deva', Jyeshtha: 'Rakshasa', Mula: 'Rakshasa',
+    'Purva Ashadha': 'Manava', 'Uttara Ashadha': 'Manava', Shravana: 'Deva',
+    Dhanishtha: 'Rakshasa', Shatabhisha: 'Rakshasa', 'Purva Bhadrapada': 'Manava',
+    'Uttara Bhadrapada': 'Manava', Revati: 'Deva',
+  }
+  const GANA_LABEL: Record<string, string> = {
+    Deva: 'Deva (Divine / Sattvic)',
+    Manava: 'Manava (Human / Rajasic)',
+    Rakshasa: 'Rakshasa (Fierce / Tamasic)',
+  }
+  const groomGana = groom.nakshatra ? NAKSHATRA_GANA[groom.nakshatra] || '' : ''
+
+  const shareOnWhatsApp = async () => {
     const profileUrl = `${window.location.origin}/groom/${groom.id}`
+
+    // Try to get guna breakdown from cache via API
+    let grahaScore = ''
+    let bhakootScore = ''
+    try {
+      const myProfileRes = await fetch('/api/my-profile')
+      const myProfile = await myProfileRes.json()
+      if (myProfile?.dob && groom.dob) {
+        const res = await fetch('/api/guna-milan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groomId: groom.id,
+            bride: { dob: myProfile.dob, birth_time: myProfile.birth_time, birth_place: myProfile.birth_place, nakshatra: myProfile.nakshatra },
+            groom: { dob: groom.dob, birth_time: groom.birth_time, birth_place: groom.birth_place, nakshatra: groom.nakshatra },
+          }),
+        })
+        const match = await res.json()
+        if (match?.breakdown) {
+          const graha = match.breakdown.find((k: { name: string }) => k.name === 'Graha Maitri')
+          const bhakoot = match.breakdown.find((k: { name: string }) => k.name === 'Bhakoot' || k.name === 'Bhakoot Koot')
+          if (graha) grahaScore = `${graha.score}/${graha.maxPoints}`
+          if (bhakoot) bhakootScore = `${bhakoot.score}/${bhakoot.maxPoints}`
+        }
+      }
+    } catch { /* skip breakdown if unavailable */ }
+
+    const gunaLine = [
+      groom.guna_score ? `*Guna:* ${groom.guna_score}/36` : '',
+      grahaScore ? `*Graha Maitri:* ${grahaScore}` : '',
+      bhakootScore ? `*Bhakoot:* ${bhakootScore}` : '',
+    ].filter(Boolean).join(' | ')
+
     const lines = [
-      `Hi! Check out *${groom.name}* on RishtaBook.`,
+      `Hey 👋`,
+      `Check out *${groom.name}* on RishtaBook.`,
       '',
-      age ? `Age: ${age} years` : groom.dob ? `DOB: ${groom.dob}` : '',
-      groom.location ? `Location: ${groom.location}` : '',
-      groom.occupation ? `Occupation: ${groom.occupation}` : '',
-      groom.education ? `Education: ${groom.education}` : '',
-      groom.income ? `Income: Rs ${groom.income} LPA` : '',
-      groom.nakshatra ? `Nakshatra: ${groom.nakshatra}${groom.rashi ? ` | Rashi: ${groom.rashi}` : ''}` : '',
-      groom.gotra ? `Gotra: ${groom.gotra}` : '',
-      groom.manglik === 'true' ? 'Manglik: Yes' : groom.manglik === 'false' ? 'Manglik: No' : '',
-      groom.guna_score ? `Guna Score: ${groom.guna_score}/36` : '',
+      age ? `1. *Age:* ${age} years` : '',
+      groom.location ? `2. *Location:* ${groom.location}` : '',
+      groom.occupation ? `3. *Occupation:* ${groom.occupation}` : '',
+      groom.education ? `4. *Education:* ${groom.education}` : '',
+      gunaLine ? `5. ${gunaLine}` : '',
+      groomGana ? `6. *Personality:* ${GANA_LABEL[groomGana] || groomGana}` : '',
+      groom.income ? `7. *Income:* ₹${groom.income} LPA` : '',
+      groom.agent_name ? `8. *Agent:* ${cleanAgentName(groom.agent_name)}` : '',
       '',
       `🔗 ${profileUrl}`,
     ].filter(Boolean)
+
     const text = encodeURIComponent(lines.join('\n'))
     window.open(`https://wa.me/?text=${text}`, '_blank')
   }
