@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { Phone, MapPin, ChevronLeft, Heart, Loader2, FileText, X, Share2, Pencil, Check, Trash2 } from 'lucide-react'
+import { Phone, MapPin, ChevronLeft, Heart, Loader2, FileText, X, Share2, Pencil, Check, Trash2, Upload, Camera } from 'lucide-react'
 import clsx from 'clsx'
 
 interface Groom {
@@ -116,6 +116,9 @@ export default function GroomDetailPage() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState<'photo' | 'pdf' | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const pdfInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch(`/api/grooms/${id}`)
@@ -167,6 +170,35 @@ export default function GroomDetailPage() {
     } catch {
       toast.error('Failed to delete')
       setDeleting(false)
+    }
+  }
+
+  const handleFileUpload = async (file: File, type: 'photo' | 'pdf') => {
+    if (!groom) return
+    setUploadingFile(type)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('label', type === 'pdf' ? 'biodata' : 'photo')
+      fd.append('groomId', groom.id)
+      fd.append('groomName', groom.name)
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
+      const uploadData = await uploadRes.json()
+      if (!uploadData.path) { toast.error('Upload failed'); return }
+      const update: Record<string, string> = type === 'pdf'
+        ? { pdf_path: uploadData.path }
+        : { photo_paths: [uploadData.path, ...groom.photo_paths.split(',').filter(p => p && !p.startsWith('/uploads/') && p !== 'local-upload')].join(',') }
+      await fetch(`/api/grooms/${groom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update),
+      })
+      setGroom(prev => prev ? { ...prev, ...update } : prev)
+      toast.success(type === 'pdf' ? 'Bio-data updated!' : 'Photo added!')
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploadingFile(null)
     }
   }
 
@@ -395,9 +427,13 @@ export default function GroomDetailPage() {
               </span>
             </div>
           )}
+          {/* Hidden file inputs */}
+          <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'photo'); e.target.value = '' }} />
+          <input ref={pdfInputRef} type="file" accept=".pdf,image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'pdf'); e.target.value = '' }} />
+
           {/* Action buttons */}
           <div className="flex gap-2 mt-3 flex-wrap">
-            {groom.pdf_path && (
+            {groom.pdf_path && !groom.pdf_path.startsWith('/uploads/') && groom.pdf_path !== 'local-upload' && (
               <button
                 onClick={() => setShowPdf(true)}
                 className="flex items-center gap-1.5 bg-white border border-[#E8E8E4] text-[#1C1C1E] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#F5F5F5] transition-colors shadow-sm"
@@ -405,6 +441,22 @@ export default function GroomDetailPage() {
                 <FileText size={15} className="text-[#C2185B]" /> View Bio-Data
               </button>
             )}
+            <button
+              onClick={() => pdfInputRef.current?.click()}
+              disabled={uploadingFile === 'pdf'}
+              className="flex items-center gap-1.5 bg-white border border-[#E8E8E4] text-[#1C1C1E] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#F5F5F5] transition-colors shadow-sm disabled:opacity-60"
+            >
+              {uploadingFile === 'pdf' ? <Loader2 size={15} className="animate-spin text-[#C2185B]" /> : <Upload size={15} className="text-[#C2185B]" />}
+              {groom.pdf_path && groom.pdf_path !== 'local-upload' && !groom.pdf_path.startsWith('/uploads/') ? 'Replace Bio-Data' : 'Upload Bio-Data'}
+            </button>
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={uploadingFile === 'photo'}
+              className="flex items-center gap-1.5 bg-white border border-[#E8E8E4] text-[#1C1C1E] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#F5F5F5] transition-colors shadow-sm disabled:opacity-60"
+            >
+              {uploadingFile === 'photo' ? <Loader2 size={15} className="animate-spin text-[#C2185B]" /> : <Camera size={15} className="text-[#C2185B]" />}
+              Add Photo
+            </button>
             <button
               onClick={shareOnWhatsApp}
               className="flex items-center gap-1.5 bg-[#075E54] text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#054d43] transition-colors shadow-sm"
