@@ -86,9 +86,12 @@ export default function AddGroomPage() {
         fetch('/api/extract-pdf', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('pdf', file); return fd })() }),
       ])
       const uploadData = await uploadRes.json()
-      if (uploadData.path) setBioFilePath(uploadData.path)
-      else setBioFilePath('local-upload')
-      if (uploadData.driveError) console.warn('Drive fallback reason:', uploadData.driveError)
+      if (uploadData.path) {
+        setBioFilePath(uploadData.path)
+      } else {
+        setBioFilePath('')
+        toast.error(uploadData.error || 'File upload failed — bio-data not saved')
+      }
 
       const data = await extractRes.json()
       if (data.error) { toast.error(data.error); return }
